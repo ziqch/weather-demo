@@ -1,13 +1,16 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { WeatherResponse } from '../types/weather';
+
+// Default city
+const DEFAULT_CITY = 'San Francisco';
 
 // Weather icon component
 function getWeatherIcon(condition: string) {
   const lowerCondition = condition.toLowerCase();
-  
+
   if (lowerCondition.includes('sunny') || lowerCondition.includes('clear')) {
     return '☀️';
   } else if (lowerCondition.includes('cloud')) {
@@ -24,30 +27,34 @@ function getWeatherIcon(condition: string) {
     return '💨';
   } else if (lowerCondition.includes('partly')) {
     return '⛅';
+  } else if (lowerCondition.includes('drizzle')) {
+    return '🌦️';
   }
-  
+
   return '🌤️'; // Default
 }
 
 export default function WeatherPage() {
-  const searchParams = useSearchParams();
-  const location = searchParams.get('location') || 'San Francisco';
-  
   const [data, setData] = useState<WeatherResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
+  // Fetch weather data based on location parameter
   useEffect(() => {
     const fetchWeather = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        // Get location from query parameter or use default
+        const location = searchParams.get('location') || DEFAULT_CITY;
         const response = await fetch(`/api/weather?location=${encodeURIComponent(location)}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch weather data');
         }
-        
+
         const weatherData: WeatherResponse = await response.json();
         setData(weatherData);
       } catch (err) {
@@ -58,7 +65,13 @@ export default function WeatherPage() {
     };
 
     fetchWeather();
-  }, [location]);
+  }, [searchParams]);
+
+  // Helper function to format time in the location's timezone
+  const formatTime = (timeString: string, timezone: string, options: Intl.DateTimeFormatOptions) => {
+    const date = new Date(timeString);
+    return date.toLocaleString('en-US', { ...options, timeZone: timezone });
+  };
 
   if (loading) {
     return (
@@ -93,7 +106,7 @@ export default function WeatherPage() {
                 {data.location}
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                {new Date(data.current.time).toLocaleDateString('en-US', {
+                {formatTime(data.current.time, data.timezone, {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -113,7 +126,7 @@ export default function WeatherPage() {
               </p>
             </div>
           </div>
-          
+
           <div className="mt-6 grid grid-cols-3 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
             <div className="text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">Min Temp</p>
@@ -149,7 +162,7 @@ export default function WeatherPage() {
                   className="flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-xl p-4 min-w-[100px] shadow-md hover:shadow-lg transition-shadow"
                 >
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {new Date(hour.time).toLocaleTimeString('en-US', {
+                    {formatTime(hour.time, data.timezone, {
                       hour: 'numeric',
                       hour12: true,
                     })}
@@ -157,7 +170,7 @@ export default function WeatherPage() {
                   <div className="text-4xl my-2">
                     {getWeatherIcon(hour.condition)}
                   </div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 text-center">
                     {hour.condition}
                   </p>
                   <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -190,23 +203,23 @@ export default function WeatherPage() {
                 >
                   <div className="w-32">
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {new Date(day.time).toLocaleDateString('en-US', {
+                      {formatTime(day.time, data.timezone, {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',
                       })}
                     </p>
                   </div>
-                  
+
                   <div className="w-32 flex items-center gap-2">
                     <span className="text-2xl">
                       {getWeatherIcon(day.condition)}
                     </span>
-                    <p className="text-gray-700 dark:text-gray-300">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       {day.condition}
                     </p>
                   </div>
-                  
+
                   <div className="flex-1 flex items-center gap-4">
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400 w-12 text-right">
                       {minTemp}°
@@ -224,7 +237,7 @@ export default function WeatherPage() {
                       {maxTemp}°
                     </span>
                   </div>
-                  
+
                   <div className="w-20 text-right">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       UV: {day.uv_index}

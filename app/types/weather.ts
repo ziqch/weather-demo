@@ -9,6 +9,7 @@ export interface Weather {
 
 export interface WeatherResponse {
   location: string;
+  timezone: string;
   current: Weather;
   hourly: Weather[];
   daily: Weather[];
